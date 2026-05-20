@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MetaLegal AI Assistant</title>
+  <meta name="description" content="MetaLegal's AI-powered legal assistant — instant answers from our knowledge base." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary:    #0a0f1e;
+      --bg-secondary:  #111827;
+      --bg-card:       #1a2235;
+      --bg-input:      #0f1729;
+      --accent-gold:   #c8a84b;
+      --accent-blue:   #3b82f6;
+      --accent-green:  #10b981;
+      --text-primary:  #f1f5f9;
+      --text-secondary:#94a3b8;
+      --text-muted:    #64748b;
+      --border:        #1e2d45;
+      --border-focus:  #3b82f6;
+      --radius:        14px;
+      --radius-sm:     8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .header {
+      width: 100%;
+      background: linear-gradient(135deg, #0d1628 0%, #1a2540 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent-gold), #e8c56a);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 12px rgba(200,168,75,0.3);
+    }
+
+    .logo-text { font-size: 20px; font-weight: 700; }
+    .logo-text span { color: var(--accent-gold); }
+
+    .status-badge {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: var(--accent-green);
+      font-size: 12px; font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 20px;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* ── Main Layout ─────────────────────────────────────────────── */
+    .main {
+      width: 100%;
+      max-width: 860px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px 0;
+      gap: 20px;
+    }
+
+    /* ── Hero ─────────────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 32px 0 8px;
+    }
+
+    .hero h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #f1f5f9, var(--accent-gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .hero p {
+      color: var(--text-secondary);
+      font-size: 14px;
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── Quick Suggestions ───────────────────────────────────────── */
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .suggestion-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 12px;
+      padding: 7px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .suggestion-chip:hover {
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+      background: rgba(200,168,75,0.05);
+      transform: translateY(-1px);
+    }
+
+    /* ── Chat Container ──────────────────────────────────────────── */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      min-height: 420px;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      scroll-behavior: smooth;
+    }
+
+    .messages::-webkit-scrollbar { width: 5px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Messages ────────────────────────────────────────────────── */
+    .message {
+      display: flex;
+      gap: 12px;
+      animation: fadeUp 0.3s ease;
+      min-width: 0;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+
+    .avatar.bot {
+      background: linear-gradient(135deg, var(--accent-gold), #e8c56a);
+      color: #0a0f1e;
+      font-weight: 700;
+    }
+
+    .avatar.user {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      color: white;
+    }
+
+    .message-content {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      max-width: 78%;
+    }
+
+    .message.user .message-content {
+      align-items: flex-end;
+    }
+
+    .bubble {
+      width: fit-content;
+      max-width: 100%;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .message.bot .bubble {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-top-left-radius: 4px;
+      color: var(--text-primary);
+    }
+
+    .message.user .bubble {
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      border-top-right-radius: 4px;
+      color: white;
+    }
+
+    /* Markdown-ish rendering */
+    .bubble strong { color: var(--accent-gold); }
+    .bubble code {
+      background: rgba(255,255,255,0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .bubble ul, .bubble ol { padding-left: 18px; margin-top: 6px; }
+    .bubble li { margin-bottom: 4px; }
+    .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+    /* Metadata row */
+    .meta-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+      max-width: 100%;
+    }
+
+    .meta-badge {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text-muted);
+    }
+
+    .meta-badge.high   { color: var(--accent-green); background: rgba(16,185,129,0.1); }
+    .meta-badge.medium { color: #f59e0b; background: rgba(245,158,11,0.1); }
+    .meta-badge.low    { color: #ef4444; background: rgba(239,68,68,0.1); }
+
+    /* Sources */
+    .sources {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .sources a {
+      color: var(--accent-blue);
+      text-decoration: none;
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
+    .sources a:hover { text-decoration: underline; }
+
+    /* Typing indicator */
+    .typing-indicator {
+      display: flex; gap: 5px;
+      align-items: center;
+      padding: 14px 16px;
+    }
+
+    .typing-dot {
+      width: 7px; height: 7px;
+      background: var(--accent-gold);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%           { transform: translateY(-8px); }
+    }
+
+    /* ── Input Area ──────────────────────────────────────────────── */
+    .input-area {
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      padding: 16px 20px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .input-wrapper {
+      flex: 1;
+      position: relative;
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      padding: 12px 16px;
+      resize: none;
+      outline: none;
+      min-height: 48px;
+      max-height: 140px;
+      line-height: 1.5;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { border-color: var(--border-focus); }
+    textarea::placeholder { color: var(--text-muted); }
+
+    .send-btn {
+      width: 46px; height: 46px;
+      background: linear-gradient(135deg, var(--accent-gold), #e8c56a);
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #0a0f1e;
+      font-size: 18px;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(200,168,75,0.4);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .input-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 20px;
+    }
+
+    /* ── Config Panel ────────────────────────────────────────────── */
+    .config-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 4px;
+    }
+
+    .config-panel h3 { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+
+    .config-row {
+      display: flex; gap: 10px; align-items: center;
+    }
+
+    .config-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      padding: 9px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .config-input:focus { border-color: var(--border-focus); }
+    .config-input::placeholder { color: var(--text-muted); }
+
+    .save-btn {
+      background: rgba(59,130,246,0.15);
+      border: 1px solid rgba(59,130,246,0.3);
+      color: var(--accent-blue);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .save-btn:hover {
+      background: rgba(59,130,246,0.25);
+      border-color: var(--accent-blue);
+    }
+
+    @media (max-width: 600px) {
+      .header { padding: 12px 16px; }
+      .main { padding: 16px 12px 0; }
+      .bubble { max-width: 90%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">⚖️</div>
+    <div class="logo-text"><span>Meta</span>Legal</div>
+  </div>
+  <div style="margin-left:12px; font-size:12px; color:var(--text-muted)">AI Assistant</div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    Offline KB Active
+  </div>
+</header>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- API Config -->
+  <div class="config-panel" id="configPanel">
+    <h3>⚙️ API Configuration</h3>
+    <div class="config-row">
+      <input
+        type="text"
+        class="config-input"
+        id="apiEndpoint"
+        placeholder="API Endpoint (e.g. http://localhost:8000)"
+        value="http://localhost:8000"
+      />
+      <button class="save-btn" onclick="saveConfig()">Connect</button>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Legal Answers, Instantly</h1>
+    <p>Ask anything about GST, company registration, trademarks, compliance, and more. Answers sourced exclusively from MetaLegal's knowledge base.</p>
+  </div>
+
+  <!-- Quick suggestions -->
+  <div class="suggestions" id="suggestions">
+    <div class="suggestion-chip" onclick="sendSuggestion(this)">How do I register GST?</div>
+    <div class="suggestion-chip" onclick="sendSuggestion(this)">Documents for Pvt Ltd company</div>
+    <div class="suggestion-chip" onclick="sendSuggestion(this)">Trademark registration process</div>
+    <div class="suggestion-chip" onclick="sendSuggestion(this)">What is FSSAI license?</div>
+    <div class="suggestion-chip" onclick="sendSuggestion(this)">GST filing deadlines</div>
+    <div class="suggestion-chip" onclick="sendSuggestion(this)">LLP vs Pvt Ltd comparison</div>
+  </div>
+
+  <!-- Chat window -->
+  <div class="chat-container">
+    <div class="messages" id="messages">
+      <!-- Welcome message -->
+      <div class="message bot">
+        <div class="avatar bot">ML</div>
+        <div>
+          <div class="bubble">
+            👋 Welcome to <strong>MetaLegal's AI Assistant</strong>.<br><br>
+            I can answer questions about our legal services including GST registration, company incorporation, trademark filing, compliance, and more.<br><br>
+            All answers come from MetaLegal's verified knowledge base — no internet, no hallucinations.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="input-area">
+      <div class="input-row">
+        <div class="input-wrapper">
+          <textarea
+            id="queryInput"
+            placeholder="Ask a legal question..."
+            rows="1"
+            onkeydown="handleKeydown(event)"
+            oninput="autoResize(this)"
+          ></textarea>
+        </div>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">
+          ➤
+        </button>
+      </div>
+      <div class="input-hint">Press Enter to send · Shift+Enter for new line</div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  MetaLegal AI — Answers sourced exclusively from local knowledge base &nbsp;|&nbsp;
+  <a href="https://metalegal.in/contact" target="_blank" style="color:var(--accent-blue);text-decoration:none">Contact Support</a>
+</footer>
+
+<script>
+  // ── Config ────────────────────────────────────────────────────────────────
+  let API_BASE = localStorage.getItem('ml_api') || 'http://localhost:8000';
+  document.getElementById('apiEndpoint').value = API_BASE;
+
+  function saveConfig() {
+    const val = document.getElementById('apiEndpoint').value.trim().replace(/\/$/, '');
+    if (!val) return;
+    API_BASE = val;
+    localStorage.setItem('ml_api', val);
+    showToast('Connected to ' + val);
+  }
+
+  function showToast(msg) {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    Object.assign(el.style, {
+      position: 'fixed', bottom: '20px', right: '20px',
+      background: '#1a2235', border: '1px solid #3b82f6',
+      color: '#f1f5f9', padding: '10px 18px', borderRadius: '8px',
+      fontSize: '13px', zIndex: '999', animation: 'fadeUp 0.3s ease',
+    });
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+  }
+
+  // ── Auto-resize textarea ─────────────────────────────────────────────────
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  }
+
+  function handleKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  // ── Send suggestion ───────────────────────────────────────────────────────
+  function sendSuggestion(el) {
+    const text = el.textContent.trim();
+    document.getElementById('queryInput').value = text;
+    sendMessage();
+  }
+
+  // ── Render markdown-ish text ──────────────────────────────────────────────
+  function renderMarkdown(text) {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/^#{1,3} (.+)$/gm, '<strong style="font-size:15px;display:block;margin:8px 0 4px">$1</strong>')
+      .replace(/^- (.+)$/gm, '<li>$1</li>')
+      .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+      .replace(/---\n/g, '<hr>')
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+  }
+
+  // ── Add message to DOM ────────────────────────────────────────────────────
+  function addMessage(role, content, meta = null) {
+    const messages = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+
+    const initials = role === 'bot' ? 'ML' : '👤';
+    const avatarClass = role === 'bot' ? 'bot' : 'user';
+
+    let metaHTML = '';
+    if (meta && role === 'bot') {
+      const conf = meta.confidence || 0;
+      const confClass = conf >= 0.7 ? 'high' : conf >= 0.4 ? 'medium' : 'low';
+      const confPct = Math.round(conf * 100);
+      const latency = meta.latency_ms ? `${meta.latency_ms}ms` : '';
+      const intents = (meta.intents || []).join(', ') || 'general';
+      const chunks = meta.chunks_used || 0;
+
+      metaHTML += `<div class="meta-row">
+        <span class="meta-badge ${confClass}">Confidence: ${confPct}%</span>
+        ${latency ? `<span class="meta-badge">${latency}</span>` : ''}
+        <span class="meta-badge">${chunks} chunks</span>
+        <span class="meta-badge">${intents}</span>
+        ${meta.fallback ? '<span class="meta-badge" style="color:#ef4444">Fallback</span>' : ''}
+      </div>`;
+
+      if (meta.sources && meta.sources.length) {
+        metaHTML += `<div class="sources">Sources: ${
+          meta.sources.slice(0,3).map(u => `<a href="${u}" target="_blank">${u}</a>`).join('')
+        }</div>`;
+      }
+    }
+
+    div.innerHTML = `
+      <div class="avatar ${avatarClass}">${initials}</div>
+      <div class="message-content">
+        <div class="bubble">${renderMarkdown(content)}</div>
+        ${metaHTML}
+      </div>
+    `;
+
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  // ── Typing indicator ──────────────────────────────────────────────────────
+  function showTyping() {
+    const messages = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'message bot';
+    div.id = 'typing';
+    div.innerHTML = `
+      <div class="avatar bot">ML</div>
+      <div>
+        <div class="bubble">
+          <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      </div>
+    `;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function hideTyping() {
+    const el = document.getElementById('typing');
+    if (el) el.remove();
+  }
+
+  // ── Send message ──────────────────────────────────────────────────────────
+  async function sendMessage() {
+    const input = document.getElementById('queryInput');
+    const query = input.value.trim();
+    if (!query) return;
+
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true;
+    input.value = '';
+    input.style.height = 'auto';
+
+    // Hide suggestions after first message
+    const sug = document.getElementById('suggestions');
+    if (sug) sug.style.display = 'none';
+
+    addMessage('user', query);
+    showTyping();
+
+    try {
+      const resp = await fetch(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, session_id: getSessionId() }),
+      });
+
+      hideTyping();
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        addMessage('bot', `⚠️ API error (${resp.status}): ${err}`);
+        return;
+      }
+
+      const data = await resp.json();
+      addMessage('bot', data.answer, data);
+
+    } catch (e) {
+      hideTyping();
+      addMessage('bot',
+        `⚠️ Could not connect to MetaLegal API at \`${API_BASE}\`.\n\n` +
+        `Please ensure the API server is running:\n\`python main.py serve\`\n\n` +
+        `Or update the API endpoint above.`
+      );
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  // ── Session ID ────────────────────────────────────────────────────────────
+  function getSessionId() {
+    let sid = sessionStorage.getItem('ml_session');
+    if (!sid) {
+      sid = 'sess_' + Math.random().toString(36).slice(2, 10);
+      sessionStorage.setItem('ml_session', sid);
+    }
+    return sid;
+  }
+</script>
+</body>
+</html>
+<!-- Viewed -->
