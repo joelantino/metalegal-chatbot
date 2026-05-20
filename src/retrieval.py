@@ -121,28 +121,47 @@ def fts5_search(
     if not clean_terms:
         return []
 
-    # FTS5 match string: term1 OR term2 ...
-    match_str = " OR ".join(clean_terms)
+    # FTS5 match string: try AND first for high precision
+    match_str = " AND ".join(clean_terms)
 
     try:
-        if page_ids:
-            # Restrict to candidate pages
-            placeholders = ",".join("?" * min(len(page_ids), 800))
-            query = f"""
-                SELECT
-                    c.chunk_id, c.page_id, c.page_title, c.url, c.section,
-                    c.section_type, c.text, c.keywords, c.important_entities,
-                    c.priority_score,
-                    bm25(chunks_fts) AS bm25_score
-                FROM chunks_fts
-                JOIN chunks c ON chunks_fts.rowid = c.rowid
-                WHERE chunks_fts MATCH ? AND c.page_id IN ({placeholders})
-                ORDER BY bm25_score
-                LIMIT ?
-            """
-            rows = conn.execute(query, [match_str] + page_ids[:800] + [limit]).fetchall()
-        else:
-            query = """
+        def _execute_match(m_str: str):
+            if page_ids:
+                placeholders = ",".join("?" * min(len(page_ids), 800))
+                query = f"""
+                    SELECT
+                        c.chunk_id, c.page_id, c.page_title, c.url, c.section,
+                        c.section_type, c.text, c.keywords, c.important_entities,
+                        c.priority_score,
+                        bm25(chunks_fts) AS bm25_score
+                    FROM chunks_fts
+                    JOIN chunks c ON chunks_fts.rowid = c.rowid
+                    WHERE chunks_fts MATCH ? AND c.page_id IN ({placeholders})
+                    ORDER BY bm25_score
+                    LIMIT ?
+                """
+                return conn.execute(query, [m_str] + page_ids[:800] + [limit]).fetchall()
+            else:
+                query = """
+                    SELECT
+                        c.chunk_id, c.page_id, c.page_title, c.url, c.section,
+                        c.section_type, c.text, c.keywords, c.important_entities,
+                        c.priority_score,
+                        bm25(chunks_fts) AS bm25_score
+                    FROM chunks_fts
+                    JOIN chunks c ON chunks_fts.rowid = c.rowid
+                    WHERE chunks_fts MATCH ?
+                    ORDER BY bm25_score
+                    LIMIT ?
+                """
+                return conn.execute(query, [m_str, limit]).fetchall()
+
+        rows = _execute_match(match_str)
+        
+        # If AND logic yields too few results with page_ids, fallback to global AND search
+        if len(rows) < 3 and page_ids:
+            global_rows = conn.execute(
+                """
                 SELECT
                     c.chunk_id, c.page_id, c.page_title, c.url, c.section,
                     c.section_type, c.text, c.keywords, c.important_entities,
@@ -153,12 +172,28 @@ def fts5_search(
                 WHERE chunks_fts MATCH ?
                 ORDER BY bm25_score
                 LIMIT ?
-            """
-            rows = conn.execute(query, [match_str, limit]).fetchall()
+                """,
+                [match_str, limit]
+            ).fetchall()
+            seen = {r["chunk_id"] for r in rows}
+            for r in global_rows:
+                if r["chunk_id"] not in seen:
+                    rows.append(r)
+                    seen.add(r["chunk_id"])
 
-        for row in rows:
+        # If STILL too few results, fallback to OR logic
+        if len(rows) < 3 and len(clean_terms) > 1:
+            match_str_or = " OR ".join(clean_terms)
+            rows_or = _execute_match(match_str_or)
+            # Merge results, prioritizing AND matches
+            seen = {r["chunk_id"] for r in rows}
+            for r in rows_or:
+                if r["chunk_id"] not in seen:
+                    rows.append(r)
+                    seen.add(r["chunk_id"])
+
+        for row in rows[:limit]:
             # Normalize BM25 score: FTS5 returns negative, lower = better.
-            # Convert negative BM25 score to positive (higher is better) so section/keyword boosts scale correctly.
             raw_bm25 = row["bm25_score"] or 0.0
             bm25_norm = max(0.0, -raw_bm25)
             final = bm25_norm
